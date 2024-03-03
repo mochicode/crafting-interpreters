@@ -59,9 +59,11 @@ type BaseToken = {
 export type Token =
 	| BaseToken & { type: TokenType; }
 	| BaseToken & { type: TokenType.NUMBER, literal: number }
+	| { type: TokenType.EOF }
 
+export type ScannerIter = Generator<Token, Token>;
 
-export function* scan(source: string): Generator<Token> {
+export function* scan(source: string): ScannerIter {
 	let iter = new StringIterator(source);
 	let line = 1;
 
@@ -181,7 +183,7 @@ export function* scan(source: string): Generator<Token> {
 		char = iter.next();
 	}
 
-	return TokenType.EOF;
+	return { type: TokenType.EOF };
 }
 
 
