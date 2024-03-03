@@ -2,21 +2,52 @@ import { LexicalError } from "../error";
 
 export enum TokenType {
 	// Single Character
-	LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-	COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
+	LEFT_PAREN = 0,
+	RIGHT_PAREN = 1,
+	LEFT_BRACE = 2,
+	RIGHT_BRACE = 3,
+	COMMA = 4,
+	DOT = 5,
+	MINUS = 6,
+	PLUS = 7,
+	SEMICOLON = 8,
+	SLASH = 9,
+	STAR = 10,
 
 	// One or More Chars
-	BANG, BANG_EQUAL, EQUAL, EQUAL_EQUAL,
-	GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
+	BANG = 11,
+	BANG_EQUAL = 12,
+	EQUAL = 13,
+	EQUAL_EQUAL = 14,
+	GREATER = 15,
+	GREATER_EQUAL = 16,
+	LESS = 17,
+	LESS_EQUAL = 18,
 
 	// Literals
-	IDENTIFIER, STRING, NUMBER,
+	IDENTIFIER = 19,
+	STRING = 20,
+	NUMBER = 21,
 
 	// Keywords
-	AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-	PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE,
+	AND = 22,
+	CLASS = 23,
+	ELSE = 24,
+	FALSE = 25,
+	FUN = 26,
+	FOR = 27,
+	IF = 28,
+	NIL = 29,
+	OR = 30,
+	PRINT = 31,
+	RETURN = 32,
+	SUPER = 33,
+	THIS = 34,
+	TRUE = 35,
+	VAR = 36,
+	WHILE = 37,
 
-	EOF,
+	EOF = 38,
 
 }
 
@@ -30,13 +61,12 @@ export type Token =
 	| BaseToken & { type: TokenType.NUMBER, literal: number }
 
 
-export function scan(source: string): Array<Token> {
+export function* scan(source: string): Generator<Token> {
 	let iter = new StringIterator(source);
-	let tokens: Array<Token> = [];
 	let line = 1;
 
-	let push = (type: TokenType, lexeme: string) => {
-		tokens.push({ type, lexeme, line })
+	let token = (type: TokenType, lexeme: string) => {
+		return { type, lexeme, line };
 	}
 
 	let char = iter.next();
@@ -48,46 +78,46 @@ export function scan(source: string): Array<Token> {
 
 			case "\n": line = line + 1; break;
 
-			case "(": push(TokenType.LEFT_PAREN, char.value); break;
-			case ")": push(TokenType.RIGHT_PAREN, char.value); break;
-			case "{": push(TokenType.LEFT_BRACE, char.value); break;
-			case "}": push(TokenType.RIGHT_BRACE, char.value); break;
-			case ",": push(TokenType.COMMA, char.value); break;
-			case ".": push(TokenType.DOT, char.value); break;
-			case "-": push(TokenType.MINUS, char.value); break;
-			case "+": push(TokenType.PLUS, char.value); break;
-			case ";": push(TokenType.SEMICOLON, char.value); break;
-			case "*": push(TokenType.STAR, char.value); break;
+			case "(": yield token(TokenType.LEFT_PAREN, char.value); break;
+			case ")": yield token(TokenType.RIGHT_PAREN, char.value); break;
+			case "{": yield token(TokenType.LEFT_BRACE, char.value); break;
+			case "}": yield token(TokenType.RIGHT_BRACE, char.value); break;
+			case ",": yield token(TokenType.COMMA, char.value); break;
+			case ".": yield token(TokenType.DOT, char.value); break;
+			case "-": yield token(TokenType.MINUS, char.value); break;
+			case "+": yield token(TokenType.PLUS, char.value); break;
+			case ";": yield token(TokenType.SEMICOLON, char.value); break;
+			case "*": yield token(TokenType.STAR, char.value); break;
 
 			case "!":
 				if (iter.peek() === "=") {
-					push(TokenType.BANG_EQUAL, iter.consum(2));
+					yield token(TokenType.BANG_EQUAL, iter.consum(2));
 				} else {
-					push(TokenType.EQUAL, char.value);
+					yield token(TokenType.EQUAL, char.value);
 				}
 				break;
 
 			case "=":
 				if (iter.peek() === "=") {
-					push(TokenType.EQUAL_EQUAL, iter.consum(2));
+					yield token(TokenType.EQUAL_EQUAL, iter.consum(2));
 				} else {
-					push(TokenType.EQUAL, char.value);
+					yield token(TokenType.EQUAL, char.value);
 				}
 				break;
 
 			case "<":
 				if (iter.peek() === "=") {
-					push(TokenType.LESS_EQUAL, iter.consum(2));
+					yield token(TokenType.LESS_EQUAL, iter.consum(2));
 				} else {
-					push(TokenType.LESS, char.value);
+					yield token(TokenType.LESS, char.value);
 				}
 				break;
 
 			case ">":
 				if (iter.peek() === "=") {
-					push(TokenType.GREATER_EQUAL, iter.consum(2));
+					yield token(TokenType.GREATER_EQUAL, iter.consum(2));
 				} else {
-					push(TokenType.GREATER, char.value);
+					yield token(TokenType.GREATER, char.value);
 				}
 				break;
 
@@ -109,17 +139,18 @@ export function scan(source: string): Array<Token> {
 
 					line = line + lines;
 				} else {
-					push(TokenType.SLASH, char.value);
+					yield token(TokenType.SLASH, char.value);
 				}
 				break;
 
-			case '"':
-				let value = iter.takeUntil(char => char === '"');
+			case '"': {
+			 	let value = iter.takeUntil(char => char === '"');
 				if (value === null) {
-					throw new Error(`Unterminated String`);
+					throw new Error("Unterminated String");
 				}
 
-				push(TokenType.STRING, value.slice(0, - 1));
+				yield token(TokenType.STRING, value.slice(0, - 1));
+			}
 				break;
 
 			default:
@@ -137,11 +168,11 @@ export function scan(source: string): Array<Token> {
 						literal: parseFloat(num)
 					};
 
-					tokens.push(token)
+					yield token;
 				} else if (isAlpha(char.value)) {
 					let identifier = iter.takeWhile(char => isAlpha(char) || isDigit(char));
 					let tokenType = ReservedKeywords.get(identifier) ?? TokenType.IDENTIFIER;
-					push(tokenType, identifier)
+					yield token(tokenType, identifier)
 				} else {
 					throw new LexicalError(line, char.value);
 				}
@@ -150,7 +181,7 @@ export function scan(source: string): Array<Token> {
 		char = iter.next();
 	}
 
-	return tokens;
+	return TokenType.EOF;
 }
 
 
